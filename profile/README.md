@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/PagnivGit/.github/blob/4be87cea6c684452e9e1a8ee159e4a34683dcfcd/logo.png" alt="Pagniv — Infraestrutura Pix para negócios que crescem" width="100%" />
+  <img src="https://github.com/PagnivGit/.github/blob/457fb97d2b5c3a0290c41c07a0338280e187c9cb/logo.png" alt="Pagniv — Infraestrutura Pix para negócios que crescem" width="100%" />
 </p>
 
 <h1 align="center">Pagniv</h1>
