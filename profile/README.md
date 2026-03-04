@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="BANNER_URL" alt="Pagniv — Infraestrutura Pix para negócios que crescem" width="100%" />
+  <img src="[BANNER_URL](https://raw.githubusercontent.com/Pagniv-cyber/.github/main/profile/logo.png
+)" alt="Pagniv — Infraestrutura Pix para negócios que crescem" width="100%" />
 </p>
 
 <h1 align="center">Pagniv</h1>
