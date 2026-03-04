@@ -5,7 +5,7 @@
 <h1 align="center">Pagniv</h1>
 
 <p align="center">
-  <strong>Infraestrutura Pix para desenvolvedores.</strong><br/>
+  <strong>O motor Pix por trás dos negócios que crescem.</strong><br/>
   API simples, QR Code em segundos, liquidação automática.
 </p>
 
