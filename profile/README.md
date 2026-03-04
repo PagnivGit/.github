@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://devs.pagniv.com"><img src="https://img.shields.io/badge/docs-devs.pagniv.com-5EC37C?style=flat-square" alt="Docs" /></a>
-  <a href="https://api.pagniv.com"><img src="https://img.shields.io/badge/API-v1-5EC37C?style=flat-square" alt="API v3" /></a>
+  <a href="https://api.pagniv.com"><img src="https://img.shields.io/badge/API-v3-5EC37C?style=flat-square" alt="API v3" /></a>
   <a href="https://github.com/PagnivGit/plataforma/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-proprietary-gray?style=flat-square" alt="License" /></a>
 </p>
 
