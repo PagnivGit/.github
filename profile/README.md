@@ -5,13 +5,13 @@
 <h1 align="center">Pagniv</h1>
 
 <p align="center">
-  <strong>O motor Pix por trás dos negócios que crescem.</strong><br/>
+  <strong>Infraestrutura Pix para desenvolvedores.</strong><br/>
   API simples, QR Code em segundos, liquidação automática.
 </p>
 
 <p align="center">
   <a href="https://devs.pagniv.com"><img src="https://img.shields.io/badge/docs-devs.pagniv.com-5EC37C?style=flat-square" alt="Docs" /></a>
-  <a href="https://api.pagniv.com"><img src="https://img.shields.io/badge/API-v3-5EC37C?style=flat-square" alt="API v3" /></a>
+  <a href="https://api.pagniv.com"><img src="https://img.shields.io/badge/API-v1-5EC37C?style=flat-square" alt="API v1" /></a>
   <a href="https://github.com/PagnivGit/plataforma/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-proprietary-gray?style=flat-square" alt="License" /></a>
 </p>
 
@@ -26,7 +26,7 @@
 
 ## Sobre
 
-A **Pagniv** é uma plataforma de subadquirência Pix que permite empresas receberem pagamentos instantâneos com total controle. Do zero à primeira cobrança em menos de 30 minutos.
+A **Pagniv** é uma plataforma de subadquirência Pix que permite empresas receberem pagamentos instantâneos com total controle. Infraestrutura BaaS para PSPs, Fintechs, plataformas SaaS e iGaming.
 
 ---
 
@@ -42,7 +42,7 @@ Após aprovação, gere sua chave no dashboard em **Integrações > Chaves de AP
 
 ```
 sk_sandbox_abc123def456...   # Sandbox (testes)
-sk_production_xyz789...      # Produção (transações reais)
+sk_live_abc789def012...      # Produção (transações reais)
 ```
 
 ### 3. Crie sua primeira cobrança
@@ -95,7 +95,7 @@ X-API-Key: sk_sandbox_sua_chave_aqui
 | Ambiente | Prefixo | Descrição |
 |----------|---------|-----------|
 | Sandbox | `sk_sandbox_` | Testes sem transações reais |
-| Produção | `sk_production_` | Transações reais via Pix |
+| Produção | `sk_live_` | Transações reais via Pix |
 
 ---
 
@@ -111,6 +111,7 @@ Base URL: `https://api.pagniv.com/v1`
 | `GET` | `/v1/charges` | Listar cobranças |
 | `GET` | `/v1/charges/:id` | Detalhes de uma cobrança |
 | `DELETE` | `/v1/charges/:id` | Cancelar cobrança pendente |
+| `GET` | `/v1/charges/:id/checkout` | Dados públicos do checkout |
 
 ### Carteira
 
@@ -132,11 +133,12 @@ Base URL: `https://api.pagniv.com/v1`
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `POST` | `/v1/disputes` | Abrir disputa |
 | `GET` | `/v1/disputes` | Listar disputas |
 | `GET` | `/v1/disputes/:id` | Detalhes da disputa |
 | `POST` | `/v1/disputes/:id/accept` | Aceitar disputa |
 | `POST` | `/v1/disputes/:id/contest` | Contestar disputa |
+
+> Disputas são abertas pelo admin. O merchant pode aceitar ou contestar com texto de resposta e evidências.
 
 ### Webhooks
 
@@ -146,6 +148,7 @@ Base URL: `https://api.pagniv.com/v1`
 | `GET` | `/v1/webhook-config` | Listar webhooks |
 | `PUT` | `/v1/webhook-config/:id` | Atualizar webhook |
 | `DELETE` | `/v1/webhook-config/:id` | Remover webhook |
+| `POST` | `/v1/webhook-config/:id/test` | Testar webhook |
 | `GET` | `/v1/webhook-deliveries` | Histórico de entregas |
 
 ### Chaves de API
@@ -155,6 +158,28 @@ Base URL: `https://api.pagniv.com/v1`
 | `POST` | `/v1/api-keys` | Criar chave |
 | `GET` | `/v1/api-keys` | Listar chaves |
 | `DELETE` | `/v1/api-keys/:id` | Revogar chave |
+
+### Organizações
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v1/organizations` | Criar organização |
+| `GET` | `/v1/organizations` | Listar organizações |
+| `GET` | `/v1/organizations/:id` | Detalhes da organização |
+| `PATCH` | `/v1/organizations/checkout-settings` | Configurações de checkout |
+| `POST` | `/v1/organizations/invite` | Convidar membro |
+| `GET` | `/v1/organizations/members` | Listar membros |
+| `PATCH` | `/v1/organizations/members/:userId` | Alterar role do membro |
+| `DELETE` | `/v1/organizations/members/:userId` | Remover membro |
+
+### Documentos (KYC)
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v1/documents/upload` | Upload de documento (multipart) |
+| `GET` | `/v1/documents` | Listar documentos |
+| `GET` | `/v1/documents/:id/file` | Download do documento |
+| `DELETE` | `/v1/documents/:id` | Remover documento |
 
 ---
 
@@ -192,7 +217,7 @@ console.log(data.qrCodeBase64) // Imagem base64
 | `externalId` | `string` | Não | ID externo para idempotência |
 | `payerName` | `string` | Não | Nome do pagador |
 | `payerEmail` | `string` | Não | Email do pagador |
-| `payerDocument` | `string` | Não | CPF ou CNPJ do pagador |
+| `payerDocument` | `string` | Não | CPF/CNPJ do pagador |
 | `expiresIn` | `number` | Não | Expiração em segundos (padrão: 3600) |
 
 ### Status da Cobrança
@@ -210,7 +235,17 @@ console.log(data.qrCodeBase64) // Imagem base64
 
 ## Webhooks
 
-Receba notificações em tempo real quando uma cobrança for paga.
+Receba notificações em tempo real quando eventos ocorrem.
+
+### Eventos disponíveis
+
+| Evento | Descrição |
+|--------|-----------|
+| `charge.paid` | Cobrança paga com sucesso |
+| `charge.expired` | Cobrança expirada sem pagamento |
+| `charge.refunded` | Cobrança reembolsada |
+| `dispute.opened` | Nova disputa aberta |
+| `dispute.resolved` | Disputa resolvida |
 
 ### Configurar
 
@@ -219,9 +254,12 @@ curl -X POST https://api.pagniv.com/v1/webhook-config \
   -H "X-API-Key: sk_sandbox_sua_chave" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://seusite.com/webhook/pagniv"
+    "url": "https://seusite.com/webhook/pagniv",
+    "events": ["charge.paid", "charge.expired"]
   }'
 ```
+
+> O campo `events` é opcional. Se omitido, o webhook recebe todos os eventos. O `secret` é auto-gerado se não informado.
 
 ### Payload recebido
 
@@ -280,17 +318,27 @@ app.post('/webhook/pagniv', (req, res) => {
 })
 ```
 
-### Política de retry
+### Gerenciar webhooks
 
-| Tentativa | Intervalo |
-|-----------|-----------|
-| 1 | Imediato |
-| 2 | ~5 minutos |
-| 3 | ~25 minutos |
-| 4 | ~2 horas |
-| 5 | ~10 horas |
+```bash
+# Atualizar webhook
+curl -X PUT https://api.pagniv.com/v1/webhook-config/{id} \
+  -H "X-API-Key: sk_sandbox_sua_chave" \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://seusite.com/webhook/v2", "events": ["charge.paid"] }'
 
-Após 10 entregas exaustas em 24h, o webhook é desativado automaticamente (circuit breaker).
+# Testar webhook
+curl -X POST https://api.pagniv.com/v1/webhook-config/{id}/test \
+  -H "X-API-Key: sk_sandbox_sua_chave"
+
+# Remover webhook
+curl -X DELETE https://api.pagniv.com/v1/webhook-config/{id} \
+  -H "X-API-Key: sk_sandbox_sua_chave"
+
+# Histórico de entregas
+curl https://api.pagniv.com/v1/webhook-deliveries \
+  -H "X-API-Key: sk_sandbox_sua_chave"
+```
 
 ---
 
@@ -311,7 +359,12 @@ curl https://api.pagniv.com/v1/balance \
     "blockedBalance": 0,
     "totalEarned": 1580000,
     "totalWithdrawn": 1420000,
-    "totalFeesPaid": 34950
+    "totalFeesPaid": 34950,
+    "breakdown": {
+      "PIX": { "availableBalance": 100050, "pendingBalance": 20000 },
+      "CARD": { "availableBalance": 25000, "pendingBalance": 10000 },
+      "BOLETO": { "availableBalance": 0, "pendingBalance": 0 }
+    }
   }
 }
 ```
@@ -322,6 +375,7 @@ curl https://api.pagniv.com/v1/balance \
 | `pendingBalance` | Em liquidação (D+N) |
 | `reservedBalance` | Reservado para disputas abertas |
 | `blockedBalance` | Bloqueado pelo admin |
+| `breakdown` | Saldo por método de pagamento (PIX, CARD, BOLETO) |
 
 ---
 
@@ -339,6 +393,42 @@ curl -X POST https://api.pagniv.com/v1/withdrawals \
 ```
 
 **Tipos de chave Pix:** `CPF` | `CNPJ` | `EMAIL` | `PHONE` | `EVP`
+
+---
+
+## Disputas
+
+Disputas são abertas pelo admin quando um pagador contesta uma transação. O merchant pode aceitar ou contestar.
+
+### Contestar disputa
+
+```bash
+curl -X POST https://api.pagniv.com/v1/disputes/{id}/contest \
+  -H "X-API-Key: sk_sandbox_sua_chave" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "response": "O produto foi entregue conforme combinado.",
+    "evidenceUrls": ["https://exemplo.com/comprovante.pdf"]
+  }'
+```
+
+### Aceitar disputa
+
+```bash
+curl -X POST https://api.pagniv.com/v1/disputes/{id}/accept \
+  -H "X-API-Key: sk_sandbox_sua_chave"
+```
+
+### Status da Disputa
+
+| Status | Descrição |
+|--------|-----------|
+| `OPEN` | Aguardando resposta do merchant |
+| `MERCHANT_RESPONDED` | Merchant contestou, aguardando análise |
+| `UNDER_REVIEW` | Em análise pelo admin |
+| `RESOLVED_MERCHANT` | Resolvida a favor do merchant |
+| `RESOLVED_BUYER` | Resolvida a favor do comprador |
+| `REFUNDED` | Valor reembolsado |
 
 ---
 
@@ -412,6 +502,15 @@ X-RateLimit-Remaining: 97
 X-RateLimit-Reset: 1705312800
 ```
 
+Limites específicos por endpoint:
+
+| Endpoint | Limite |
+|----------|--------|
+| `POST /v1/charges` | 60/minuto |
+| `POST /v1/withdrawals` | 5/hora |
+| `POST /v1/auth/login` | 15/15min |
+| `POST /v1/auth/register` | 3/hora |
+
 ---
 
 ## Recursos
@@ -420,18 +519,20 @@ X-RateLimit-Reset: 1705312800
 |---------|-----------|
 | **Cobranças Pix** | QR Codes dinâmicos com confirmação instantânea |
 | **Dashboard** | Cobranças, carteira, saques e disputas em tempo real |
-| **Webhooks** | Retry automático, assinatura HMAC, circuit breaker |
+| **Webhooks** | Assinatura HMAC, test delivery, histórico completo |
 | **Multi-tenant** | Múltiplas organizações com roles (Owner, Admin, Finance, Viewer) |
 | **Sandbox** | Ambiente completo para testes |
 | **Liquidação automática** | Settlement configurável (D+N) |
-| **Disputas** | Gestão completa com evidências e resolução |
+| **Disputas** | Contestação com evidências e resolução admin |
+| **Split de pagamento** | Comissão automática para afiliados |
+| **KYC** | Upload e validação de documentos |
 | **Audit log** | Rastreamento de todas as ações |
 
 ---
 
 ## Segmentos
 
-E-commerce · iGaming · SaaS · Marketplace · Infoprodutos · Serviços Financeiros · Saúde · Varejo
+PSPs · Fintechs · iGaming · SaaS · Marketplace · Infoprodutos · Serviços Financeiros
 
 ---
 
@@ -442,6 +543,7 @@ E-commerce · iGaming · SaaS · Marketplace · Infoprodutos · Serviços Financ
 | Site | [pagniv.com](https://pagniv.com) |
 | Documentação completa | [devs.pagniv.com](https://devs.pagniv.com) |
 | Dashboard | [portal.pagniv.com](https://portal.pagniv.com) |
+| Sobre | [pagniv.com/sobre](https://pagniv.com/sobre) |
 | GitHub | [github.com/PagnivGit](https://github.com/PagnivGit) |
 
 ---
