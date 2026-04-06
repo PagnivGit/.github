@@ -10,16 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://devs.pagniv.com"><img src="https://img.shields.io/badge/docs-devs.pagniv.com-5EC37C?style=flat-square" alt="Docs" /></a>
-  <a href="https://api.pagniv.com"><img src="https://img.shields.io/badge/API-v1-5EC37C?style=flat-square" alt="API v1" /></a>
-  <a href="https://github.com/PagnivGit/plataforma/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-proprietary-gray?style=flat-square" alt="License" /></a>
-</p>
-
-<p align="center">
   <a href="https://pagniv.com">Site</a> ·
   <a href="https://devs.pagniv.com">Documentação</a> ·
-  <a href="https://portal.pagniv.com">Dashboard</a> ·
-  <a href="https://github.com/PagnivGit">GitHub</a>
+  <a href="https://portal.pagniv.com">Dashboard</a>
 </p>
 
 ---
@@ -128,6 +121,12 @@ Base URL: `https://api.pagniv.com/v1`
 | `POST` | `/v1/withdrawals` | Solicitar saque |
 | `GET` | `/v1/withdrawals` | Listar saques |
 | `GET` | `/v1/withdrawals/:id` | Detalhes do saque |
+
+### Depósito
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| `POST` | `/v1/deposit` | Gerar QR Code para depósito |
 
 ### Disputas
 
@@ -392,7 +391,53 @@ curl -X POST https://api.pagniv.com/v1/withdrawals \
   }'
 ```
 
-**Tipos de chave Pix:** `CPF` | `CNPJ` | `EMAIL` | `PHONE` | `EVP`
+### Parâmetros
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|:-----------:|-----------|
+| `amount` | `number` | Sim | Valor em centavos (min: 100 = R$ 1,00) |
+| `pixKey` | `string` | Sim | Chave Pix destino |
+| `pixKeyType` | `string` | Sim | `CPF`, `CNPJ`, `EMAIL`, `PHONE` ou `EVP` |
+
+### Resposta
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-...",
+    "amount": 50000,
+    "fee": 200,
+    "netAmount": 49800,
+    "status": "PENDING",
+    "pixKey": "empresa@email.com",
+    "pixKeyType": "EMAIL",
+    "createdAt": "2026-01-15T14:00:00Z"
+  }
+}
+```
+
+### Status do Saque
+
+| Status | Descrição |
+|--------|-----------|
+| `PENDING` | Solicitado, aguardando aprovação |
+| `APPROVED` | Aprovado, será processado |
+| `PROCESSING` | Em processamento no provedor Pix |
+| `COMPLETED` | Pix enviado com sucesso |
+| `FAILED` | Falha no envio — saldo devolvido |
+| `REJECTED` | Rejeitado — saldo devolvido |
+
+### Modo de cobrança da taxa
+
+A taxa de saque pode ser configurada em dois modos (definido pelo admin por merchant):
+
+| Modo | Comportamento | Exemplo (saque R$ 500, taxa R$ 2) |
+|------|--------------|-----------------------------------|
+| **Do saque** (padrão) | Taxa descontada do valor sacado | Recebe R$ 498, débito R$ 500 |
+| **Do saldo** | Taxa debitada separadamente do saldo | Recebe R$ 500, débito R$ 502 |
+
+> O modo é transparente para a API. O campo `netAmount` na resposta sempre reflete o valor que o merchant vai receber.
 
 ---
 
@@ -522,11 +567,14 @@ Limites específicos por endpoint:
 | **Webhooks** | Assinatura HMAC, test delivery, histórico completo |
 | **Multi-tenant** | Múltiplas organizações com roles (Owner, Admin, Finance, Viewer) |
 | **Sandbox** | Ambiente completo para testes |
-| **Liquidação automática** | Settlement configurável (D+N) |
+| **Liquidação automática** | Settlement configurável (D+0 a D+30) |
 | **Disputas** | Contestação com evidências e resolução admin |
 | **Split de pagamento** | Comissão automática para afiliados |
+| **Depósito via Pix** | QR Code para adicionar saldo à carteira |
+| **Taxa de saque flexível** | Desconto do saque ou do saldo, por merchant |
 | **KYC** | Upload e validação de documentos |
 | **Audit log** | Rastreamento de todas as ações |
+| **Sub-contas** | Hierarquia de merchants com conta pai |
 
 ---
 
@@ -543,7 +591,6 @@ PSPs · Fintechs · iGaming · SaaS · Marketplace · Infoprodutos · Serviços 
 | Site | [pagniv.com](https://pagniv.com) |
 | Documentação completa | [devs.pagniv.com](https://devs.pagniv.com) |
 | Dashboard | [portal.pagniv.com](https://portal.pagniv.com) |
-| Sobre | [pagniv.com/sobre](https://pagniv.com/sobre) |
 | GitHub | [github.com/PagnivGit](https://github.com/PagnivGit) |
 
 ---
