@@ -33,7 +33,7 @@ Acesse [portal.pagniv.com](https://portal.pagniv.com) e cadastre sua empresa.
 No dashboard, vá em **Integrações → Chaves de API** e gere uma chave:
 
 ```
-sk_sandbox_abc123...   # Sandbox (testes — sem transação real)
+sk_sandbox_abc123...   # Sandbox (testes - sem transação real)
 sk_live_abc789...      # Produção (transações reais)
 ```
 
@@ -83,7 +83,7 @@ Envie o header `X-API-Key` em toda requisição. Base URL: `https://api.pagniv.c
 
 | Ambiente | Prefixo | Comportamento |
 |---|---|---|
-| Sandbox | `sk_sandbox_` | Testes — sem transações reais |
+| Sandbox | `sk_sandbox_` | Testes - sem transações reais |
 | Produção | `sk_live_` | Transações reais via Pix |
 
 ---
@@ -210,7 +210,7 @@ curl -X POST https://api.pagniv.com/v1/webhook-config \
   }'
 ```
 
-A resposta inclui um `secret` — guarde para verificar a assinatura.
+A resposta inclui um `secret` - guarde para verificar a assinatura.
 
 ### Payload recebido
 
@@ -262,7 +262,7 @@ app.post('/webhooks/pagniv', (req, res) => {
 ## Sandbox: como testar
 
 1. Use uma chave `sk_sandbox_*`
-2. Crie uma cobrança normalmente (`POST /charges`) — recebe QR Code de teste
+2. Crie uma cobrança normalmente (`POST /charges`) - recebe QR Code de teste
 3. Configure seu webhook (opcional, para validar handler end-to-end)
 4. Simule o pagamento:
 
@@ -323,7 +323,7 @@ curl -X POST https://api.pagniv.com/v1/withdrawals \
 | `pixKey` | `string` | Sim | Chave Pix destino |
 | `pixKeyType` | `string` | Sim | `CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP` |
 
-**Status:** `PENDING` → `APPROVED` → `PROCESSING` → `COMPLETED` (ou `FAILED`/`REJECTED` em caso de erro — saldo é devolvido).
+**Status:** `PENDING` → `APPROVED` → `PROCESSING` → `COMPLETED` (ou `FAILED`/`REJECTED` em caso de erro - saldo é devolvido).
 
 ---
 
@@ -408,12 +408,12 @@ X-RateLimit-Reset: 1714824000
 
 ## Recursos
 
-- **Cobranças Pix** — QR Code dinâmico, copia e cola, confirmação instantânea via webhook
-- **Webhooks** — HMAC-SHA256, retries automáticos
-- **Estorno** — total ou parcial via API
-- **Saques** — Pix para qualquer chave, liquidação automática
-- **Disputas** — fluxo de contestação com evidências
-- **Sandbox** — ambiente completo de testes com simulação de pagamento
+- **Cobranças Pix** - QR Code dinâmico, copia e cola, confirmação instantânea via webhook
+- **Webhooks** - HMAC-SHA256, retries automáticos
+- **Estorno** - total ou parcial via API
+- **Saques** - Pix para qualquer chave, liquidação automática
+- **Disputas** - fluxo de contestação com evidências
+- **Sandbox** - ambiente completo de testes com simulação de pagamento
 
 ---
 
