@@ -11,15 +11,14 @@
 
 <p align="center">
   <a href="https://pagniv.com">Site</a> ·
-  <a href="https://devs.pagniv.com">Documentação</a> ·
+  <a href="https://devs.pagniv.com">Documentação completa</a> ·
   <a href="https://portal.pagniv.com">Dashboard</a>
 </p>
 
 ---
 
-## Sobre
-
-A **Pagniv** é uma plataforma de subadquirência Pix que permite empresas receberem pagamentos instantâneos com total controle. Infraestrutura BaaS para PSPs, Fintechs, plataformas SaaS e iGaming.
+> Este README cobre o **mínimo necessário** para integrar a API.
+> Para detalhes, exemplos completos e referência de cada endpoint, consulte [devs.pagniv.com](https://devs.pagniv.com).
 
 ---
 
@@ -31,24 +30,23 @@ Acesse [portal.pagniv.com](https://portal.pagniv.com) e cadastre sua empresa.
 
 ### 2. Obtenha sua API Key
 
-Após aprovação, gere sua chave no dashboard em **Integrações > Chaves de API**.
+No dashboard, vá em **Integrações → Chaves de API** e gere uma chave:
 
 ```
-sk_sandbox_abc123def456...   # Sandbox (testes)
-sk_live_abc789def012...      # Produção (transações reais)
+sk_sandbox_abc123...   # Sandbox (testes — sem transação real)
+sk_live_abc789...      # Produção (transações reais)
 ```
 
 ### 3. Crie sua primeira cobrança
 
 ```bash
 curl -X POST https://api.pagniv.com/v1/charges \
-  -H "X-API-Key: sk_sandbox_abc123def456" \
+  -H "X-API-Key: sk_sandbox_abc123..." \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 15000,
     "description": "Pedido #1234",
-    "payerName": "João Silva",
-    "payerDocument": "12345678900",
+    "externalId": "pedido-1234",
     "expiresIn": 3600
   }'
 ```
@@ -67,198 +65,152 @@ curl -X POST https://api.pagniv.com/v1/charges \
     "status": "PENDING",
     "qrCode": "00020126580014br.gov.bcb.pix...",
     "qrCodeBase64": "data:image/png;base64,...",
-    "expiresAt": "2026-01-15T12:00:00Z",
-    "createdAt": "2026-01-15T11:00:00Z"
+    "expiresAt": "2026-05-04T12:00:00Z",
+    "createdAt": "2026-05-04T11:00:00Z"
   }
 }
 ```
 
-> Valores em **centavos**. R$ 150,00 = `15000`.
+> Valores em **centavos**. R$ 150,00 = `15000`. Mínimo: `100` (R$ 1,00).
 
 ---
 
 ## Autenticação
 
-Todas as chamadas à API utilizam o header `X-API-Key`:
+Envie o header `X-API-Key` em toda requisição. Base URL: `https://api.pagniv.com/v1`.
 
-```
-X-API-Key: sk_sandbox_sua_chave_aqui
-```
+> ⚠️ **Esta API é server-to-server.** Nunca exponha sua API Key em frontend (browser, mobile app, JS público). Quem tem a chave faz qualquer operação na sua conta. Chamadas devem partir do seu backend.
 
-| Ambiente | Prefixo | Descrição |
-|----------|---------|-----------|
-| Sandbox | `sk_sandbox_` | Testes sem transações reais |
+| Ambiente | Prefixo | Comportamento |
+|---|---|---|
+| Sandbox | `sk_sandbox_` | Testes — sem transações reais |
 | Produção | `sk_live_` | Transações reais via Pix |
 
 ---
 
-## Endpoints
+## Idempotência
 
-Base URL: `https://api.pagniv.com/v1`
+Para evitar duplicidade em retries de rede ou timeout, envie o header `Idempotency-Key` (UUID v4 recomendado):
 
-### Cobranças
+```bash
+curl -X POST https://api.pagniv.com/v1/charges \
+  -H "X-API-Key: sk_live_..." \
+  -H "Idempotency-Key: 9b1d3e7c-5f8a-4d2e-9b1d-3e7c5f8a4d2e" \
+  -H "Content-Type: application/json" \
+  -d '{ "amount": 15000 }'
+```
 
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/charges` | Criar cobrança Pix |
-| `GET` | `/v1/charges` | Listar cobranças |
-| `GET` | `/v1/charges/:id` | Detalhes de uma cobrança |
-| `DELETE` | `/v1/charges/:id` | Cancelar cobrança pendente |
-| `GET` | `/v1/charges/:id/checkout` | Dados públicos do checkout |
+A mesma chave reusada em até 24h retorna a resposta original sem reprocessar. Recomendado em `POST /charges` e `POST /withdrawals`.
 
-### Carteira
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `GET` | `/v1/balance` | Consultar saldo |
-| `GET` | `/v1/transactions` | Listar transações |
-| `GET` | `/v1/statement` | Extrato por período |
-
-### Saques
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/withdrawals` | Solicitar saque |
-| `GET` | `/v1/withdrawals` | Listar saques |
-| `GET` | `/v1/withdrawals/:id` | Detalhes do saque |
-
-### Depósito
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/deposit` | Gerar QR Code para depósito |
-
-### Disputas
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `GET` | `/v1/disputes` | Listar disputas |
-| `GET` | `/v1/disputes/:id` | Detalhes da disputa |
-| `POST` | `/v1/disputes/:id/accept` | Aceitar disputa |
-| `POST` | `/v1/disputes/:id/contest` | Contestar disputa |
-
-> Disputas são abertas pelo admin. O merchant pode aceitar ou contestar com texto de resposta e evidências.
-
-### Webhooks
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/webhook-config` | Cadastrar webhook |
-| `GET` | `/v1/webhook-config` | Listar webhooks |
-| `PUT` | `/v1/webhook-config/:id` | Atualizar webhook |
-| `DELETE` | `/v1/webhook-config/:id` | Remover webhook |
-| `POST` | `/v1/webhook-config/:id/test` | Testar webhook |
-| `GET` | `/v1/webhook-deliveries` | Histórico de entregas |
-
-### Chaves de API
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/api-keys` | Criar chave |
-| `GET` | `/v1/api-keys` | Listar chaves |
-| `DELETE` | `/v1/api-keys/:id` | Revogar chave |
-
-### Organizações
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/organizations` | Criar organização |
-| `GET` | `/v1/organizations` | Listar organizações |
-| `GET` | `/v1/organizations/:id` | Detalhes da organização |
-| `PATCH` | `/v1/organizations/checkout-settings` | Configurações de checkout |
-| `POST` | `/v1/organizations/invite` | Convidar membro |
-| `GET` | `/v1/organizations/members` | Listar membros |
-| `PATCH` | `/v1/organizations/members/:userId` | Alterar role do membro |
-| `DELETE` | `/v1/organizations/members/:userId` | Remover membro |
-
-### Documentos (KYC)
-
-| Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/v1/documents/upload` | Upload de documento (multipart) |
-| `GET` | `/v1/documents` | Listar documentos |
-| `GET` | `/v1/documents/:id/file` | Download do documento |
-| `DELETE` | `/v1/documents/:id` | Remover documento |
+> `Idempotency-Key` (header) protege contra **retry de rede**.
+> `externalId` (body) é o **identificador do seu pedido** no seu sistema.
+> Pra integrações robustas, use os dois.
 
 ---
 
-## Criar Cobrança
+## Cobranças
+
+Base path: `/v1/charges`
+
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/v1/charges` | Criar cobrança Pix |
+| `GET` | `/v1/charges` | Listar (com filtros e paginação) |
+| `GET` | `/v1/charges/:id` | Detalhar (use como fallback do webhook) |
+| `GET` | `/v1/charges/:id/checkout` | Dados públicos do checkout (sem API Key) |
+| `DELETE` | `/v1/charges/:id` | Cancelar cobrança PENDING |
+| `POST` | `/v1/charges/:id/refund` | Estornar cobrança paga |
+| `POST` | `/v1/charges/:id/simulate-payment` | Simular pagamento (apenas sandbox) |
+
+### Criar
 
 ```typescript
-const response = await fetch('https://api.pagniv.com/v1/charges', {
+const res = await fetch('https://api.pagniv.com/v1/charges', {
   method: 'POST',
   headers: {
-    'X-API-Key': 'sk_sandbox_sua_chave',
-    'Content-Type': 'application/json'
+    'X-API-Key': process.env.PAGNIV_API_KEY,
+    'Idempotency-Key': crypto.randomUUID(),
+    'Content-Type': 'application/json',
   },
   body: JSON.stringify({
     amount: 15000,            // R$ 150,00 em centavos
     description: 'Pedido #1234',
+    externalId: 'pedido-1234',
+    expiresIn: 3600,          // 1 hora
     payerName: 'João Silva',
-    payerDocument: '12345678900',
     payerEmail: 'joao@email.com',
-    externalId: 'pedido-1234', // Idempotência
-    expiresIn: 3600            // 1 hora
-  })
+    payerDocument: '12345678900',
+  }),
 })
 
-const { data } = await response.json()
-console.log(data.qrCode)       // Copia e cola
-console.log(data.qrCodeBase64) // Imagem base64
+const { data } = await res.json()
+console.log(data.qrCode)        // Pix copia e cola
+console.log(data.qrCodeBase64)  // Imagem base64
 ```
 
 ### Parâmetros
 
 | Campo | Tipo | Obrigatório | Descrição |
-|-------|------|:-----------:|-----------|
-| `amount` | `number` | Sim | Valor em centavos (min: 100 = R$ 1,00) |
-| `description` | `string` | Não | Descrição da cobrança |
-| `externalId` | `string` | Não | ID externo para idempotência |
+|---|---|:-:|---|
+| `amount` | `number` | Sim | Valor em centavos (mín: 100) |
+| `description` | `string` | Não | Descrição |
+| `externalId` | `string` | Não | ID do pedido no seu sistema |
+| `expiresIn` | `number` | Não | Expiração em segundos (padrão: 3600) |
 | `payerName` | `string` | Não | Nome do pagador |
 | `payerEmail` | `string` | Não | Email do pagador |
 | `payerDocument` | `string` | Não | CPF/CNPJ do pagador |
-| `expiresIn` | `number` | Não | Expiração em segundos (padrão: 3600) |
 
-### Status da Cobrança
+### Status
 
 | Status | Descrição |
-|--------|-----------|
+|---|---|
 | `PENDING` | Aguardando pagamento |
 | `PAID` | Pagamento confirmado |
 | `EXPIRED` | Tempo de expiração atingido |
-| `CANCELLED` | Cancelada pelo merchant |
-| `REFUNDED` | Reembolsada via disputa |
+| `CANCELLED` | Cancelada via API |
+| `REFUNDED` | Estornada |
 | `DISPUTED` | Em contestação |
+
+### Estornar
+
+```bash
+curl -X POST https://api.pagniv.com/v1/charges/{id}/refund \
+  -H "X-API-Key: sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "amount": 5000, "reason": "Cliente solicitou cancelamento" }'
+```
+
+`amount` é opcional (default = líquido total). Estorna para a origem via Pix e debita o saldo disponível.
 
 ---
 
 ## Webhooks
 
-Receba notificações em tempo real quando eventos ocorrem.
+Receba notificações HTTP quando eventos ocorrem.
 
-### Eventos disponíveis
+### Eventos
 
 | Evento | Descrição |
-|--------|-----------|
-| `charge.paid` | Cobrança paga com sucesso |
-| `charge.expired` | Cobrança expirada sem pagamento |
-| `charge.refunded` | Cobrança reembolsada |
-| `dispute.opened` | Nova disputa aberta |
+|---|---|
+| `charge.paid` | Cobrança paga |
+| `charge.expired` | Expirada sem pagamento |
+| `charge.refunded` | Estornada |
+| `dispute.opened` | Nova disputa |
 | `dispute.resolved` | Disputa resolvida |
 
 ### Configurar
 
 ```bash
 curl -X POST https://api.pagniv.com/v1/webhook-config \
-  -H "X-API-Key: sk_sandbox_sua_chave" \
+  -H "X-API-Key: sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://seusite.com/webhook/pagniv",
-    "events": ["charge.paid", "charge.expired"]
+    "url": "https://seusite.com/webhooks/pagniv",
+    "events": ["charge.paid", "charge.refunded"]
   }'
 ```
 
-> O campo `events` é opcional. Se omitido, o webhook recebe todos os eventos. O `secret` é auto-gerado se não informado.
+A resposta inclui um `secret` — guarde para verificar a assinatura.
 
 ### Payload recebido
 
@@ -266,86 +218,70 @@ curl -X POST https://api.pagniv.com/v1/webhook-config \
 {
   "event": "charge.paid",
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "550e8400-...",
     "txid": "pagniv_abc123def456",
     "amount": 15000,
     "netAmount": 14901,
     "status": "PAID",
-    "paidAt": "2026-01-15T11:05:00Z",
+    "paidAt": "2026-05-04T11:05:00Z",
     "externalId": "pedido-1234"
   },
-  "timestamp": "2026-01-15T11:05:01Z"
+  "timestamp": "2026-05-04T11:05:01Z"
 }
 ```
 
-### Verificar assinatura
-
-Toda entrega inclui o header `X-Webhook-Signature` com assinatura HMAC-SHA256:
+### Verificar assinatura HMAC-SHA256
 
 ```typescript
 import crypto from 'crypto'
 
-function verifyWebhook(payload: string, signature: string, secret: string): boolean {
-  const expected = 'sha256=' + crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex')
-
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  )
+function verifyWebhook(rawBody: string, signature: string, secret: string): boolean {
+  const received = signature.replace('sha256=', '')
+  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+  return crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))
 }
 
-// No seu endpoint
-app.post('/webhook/pagniv', (req, res) => {
+app.post('/webhooks/pagniv', (req, res) => {
   const signature = req.headers['x-webhook-signature'] as string
-  const isValid = verifyWebhook(JSON.stringify(req.body), signature, WEBHOOK_SECRET)
+  const isValid = verifyWebhook(JSON.stringify(req.body), signature, process.env.WEBHOOK_SECRET!)
 
-  if (!isValid) {
-    return res.status(401).send('Invalid signature')
-  }
+  if (!isValid) return res.status(401).send('Invalid signature')
 
-  const { event, data } = req.body
-
-  if (event === 'charge.paid') {
-    // Processar pagamento confirmado
-    console.log(`Cobrança ${data.id} paga: R$ ${(data.amount / 100).toFixed(2)}`)
+  if (req.body.event === 'charge.paid') {
+    // Marca pedido como pago no seu sistema
   }
 
   res.status(200).send('OK')
 })
 ```
 
-### Gerenciar webhooks
-
-```bash
-# Atualizar webhook
-curl -X PUT https://api.pagniv.com/v1/webhook-config/{id} \
-  -H "X-API-Key: sk_sandbox_sua_chave" \
-  -H "Content-Type: application/json" \
-  -d '{ "url": "https://seusite.com/webhook/v2", "events": ["charge.paid"] }'
-
-# Testar webhook
-curl -X POST https://api.pagniv.com/v1/webhook-config/{id}/test \
-  -H "X-API-Key: sk_sandbox_sua_chave"
-
-# Remover webhook
-curl -X DELETE https://api.pagniv.com/v1/webhook-config/{id} \
-  -H "X-API-Key: sk_sandbox_sua_chave"
-
-# Histórico de entregas
-curl https://api.pagniv.com/v1/webhook-deliveries \
-  -H "X-API-Key: sk_sandbox_sua_chave"
-```
+> Use webhook como fonte primária. Se sua aplicação não receber o evento em tempo razoável, faça polling em `GET /v1/charges/:id` como fallback.
 
 ---
 
-## Consultar Saldo
+## Sandbox: como testar
+
+1. Use uma chave `sk_sandbox_*`
+2. Crie uma cobrança normalmente (`POST /charges`) — recebe QR Code de teste
+3. Configure seu webhook (opcional, para validar handler end-to-end)
+4. Simule o pagamento:
+
+```bash
+curl -X POST https://api.pagniv.com/v1/charges/{id}/simulate-payment \
+  -H "X-API-Key: sk_sandbox_..."
+```
+
+A cobrança vira `PAID` e o webhook `charge.paid` é disparado para o endpoint configurado. **Sem custo, sem dinheiro real.**
+
+---
+
+## Saldo e Saques
+
+### Consultar saldo
 
 ```bash
 curl https://api.pagniv.com/v1/balance \
-  -H "X-API-Key: sk_sandbox_sua_chave"
+  -H "X-API-Key: sk_live_..."
 ```
 
 ```json
@@ -355,34 +291,24 @@ curl https://api.pagniv.com/v1/balance \
     "availableBalance": 125050,
     "pendingBalance": 30000,
     "reservedBalance": 15000,
-    "blockedBalance": 0,
-    "totalEarned": 1580000,
-    "totalWithdrawn": 1420000,
-    "totalFeesPaid": 34950,
-    "breakdown": {
-      "PIX": { "availableBalance": 100050, "pendingBalance": 20000 },
-      "CARD": { "availableBalance": 25000, "pendingBalance": 10000 },
-      "BOLETO": { "availableBalance": 0, "pendingBalance": 0 }
-    }
+    "blockedBalance": 0
   }
 }
 ```
 
 | Campo | Descrição |
-|-------|-----------|
+|---|---|
 | `availableBalance` | Disponível para saque |
 | `pendingBalance` | Em liquidação (D+N) |
-| `reservedBalance` | Reservado para disputas abertas |
-| `blockedBalance` | Bloqueado pelo admin |
-| `breakdown` | Saldo por método de pagamento (PIX, CARD, BOLETO) |
+| `reservedBalance` | Reservado para disputas em aberto |
+| `blockedBalance` | Bloqueado |
 
----
-
-## Solicitar Saque
+### Solicitar saque
 
 ```bash
 curl -X POST https://api.pagniv.com/v1/withdrawals \
-  -H "X-API-Key: sk_sandbox_sua_chave" \
+  -H "X-API-Key: sk_live_..." \
+  -H "Idempotency-Key: $(uuidgen)" \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 50000,
@@ -391,65 +317,28 @@ curl -X POST https://api.pagniv.com/v1/withdrawals \
   }'
 ```
 
-### Parâmetros
-
 | Campo | Tipo | Obrigatório | Descrição |
-|-------|------|:-----------:|-----------|
-| `amount` | `number` | Sim | Valor em centavos (min: 100 = R$ 1,00) |
+|---|---|:-:|---|
+| `amount` | `number` | Sim | Valor em centavos |
 | `pixKey` | `string` | Sim | Chave Pix destino |
-| `pixKeyType` | `string` | Sim | `CPF`, `CNPJ`, `EMAIL`, `PHONE` ou `EVP` |
+| `pixKeyType` | `string` | Sim | `CPF`, `CNPJ`, `EMAIL`, `PHONE`, `EVP` |
 
-### Resposta
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-...",
-    "amount": 50000,
-    "fee": 200,
-    "netAmount": 49800,
-    "status": "PENDING",
-    "pixKey": "empresa@email.com",
-    "pixKeyType": "EMAIL",
-    "createdAt": "2026-01-15T14:00:00Z"
-  }
-}
-```
-
-### Status do Saque
-
-| Status | Descrição |
-|--------|-----------|
-| `PENDING` | Solicitado, aguardando aprovação |
-| `APPROVED` | Aprovado, será processado |
-| `PROCESSING` | Em processamento no provedor Pix |
-| `COMPLETED` | Pix enviado com sucesso |
-| `FAILED` | Falha no envio — saldo devolvido |
-| `REJECTED` | Rejeitado — saldo devolvido |
-
-### Modo de cobrança da taxa
-
-A taxa de saque pode ser configurada em dois modos (definido pelo admin por merchant):
-
-| Modo | Comportamento | Exemplo (saque R$ 500, taxa R$ 2) |
-|------|--------------|-----------------------------------|
-| **Do saque** (padrão) | Taxa descontada do valor sacado | Recebe R$ 498, débito R$ 500 |
-| **Do saldo** | Taxa debitada separadamente do saldo | Recebe R$ 500, débito R$ 502 |
-
-> O modo é transparente para a API. O campo `netAmount` na resposta sempre reflete o valor que o merchant vai receber.
+**Status:** `PENDING` → `APPROVED` → `PROCESSING` → `COMPLETED` (ou `FAILED`/`REJECTED` em caso de erro — saldo é devolvido).
 
 ---
 
 ## Disputas
 
-Disputas são abertas pelo admin quando um pagador contesta uma transação. O merchant pode aceitar ou contestar.
-
-### Contestar disputa
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/v1/disputes` | Listar |
+| `GET` | `/v1/disputes/:id` | Detalhar |
+| `POST` | `/v1/disputes/:id/accept` | Aceitar (reembolsa pagador) |
+| `POST` | `/v1/disputes/:id/contest` | Contestar com texto + evidências |
 
 ```bash
 curl -X POST https://api.pagniv.com/v1/disputes/{id}/contest \
-  -H "X-API-Key: sk_sandbox_sua_chave" \
+  -H "X-API-Key: sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{
     "response": "O produto foi entregue conforme combinado.",
@@ -457,81 +346,43 @@ curl -X POST https://api.pagniv.com/v1/disputes/{id}/contest \
   }'
 ```
 
-### Aceitar disputa
-
-```bash
-curl -X POST https://api.pagniv.com/v1/disputes/{id}/accept \
-  -H "X-API-Key: sk_sandbox_sua_chave"
-```
-
-### Status da Disputa
-
-| Status | Descrição |
-|--------|-----------|
-| `OPEN` | Aguardando resposta do merchant |
-| `MERCHANT_RESPONDED` | Merchant contestou, aguardando análise |
-| `UNDER_REVIEW` | Em análise pelo admin |
-| `RESOLVED_MERCHANT` | Resolvida a favor do merchant |
-| `RESOLVED_BUYER` | Resolvida a favor do comprador |
-| `REFUNDED` | Valor reembolsado |
+**Status:** `OPEN` → `MERCHANT_RESPONDED` → `UNDER_REVIEW` → `RESOLVED_MERCHANT` ou `RESOLVED_BUYER` (ou `REFUNDED`).
 
 ---
 
 ## Formato de resposta
 
-Todas as respostas seguem o mesmo envelope:
-
-**Sucesso:**
-
 ```json
-{
-  "success": true,
-  "data": { ... }
-}
+// Sucesso
+{ "success": true, "data": { ... } }
+
+// Erro
+{ "success": false, "error": { "code": "VALIDATION_ERROR", "message": "..." } }
 ```
 
-**Erro:**
+### Códigos de erro comuns
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Amount must be at least 100 (R$ 1.00)"
-  }
-}
-```
-
-### Códigos de erro
-
-| Código | Descrição |
-|--------|-----------|
-| `VALIDATION_ERROR` | Validação de input falhou |
-| `UNAUTHORIZED` | Token ou API Key inválida |
-| `FORBIDDEN` | Permissão insuficiente |
-| `NOT_FOUND` | Recurso não encontrado |
-| `CONFLICT` | Recurso já existe |
-| `RATE_LIMIT_EXCEEDED` | Muitas requisições |
+| HTTP | Código | Quando |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Campo obrigatório faltando ou inválido |
+| 400 | `INSUFFICIENT_BALANCE` | Saque ou estorno > saldo disponível |
+| 400 | `INVALID_PIX_KEY` | Chave Pix em formato inválido |
+| 400 | `NOT_SANDBOX_CHARGE` | `simulate-payment` em cobrança de produção |
+| 401 | `UNAUTHORIZED` | API Key inválida, ausente ou revogada |
+| 403 | `FORBIDDEN` | Sem permissão para o recurso |
+| 403 | `ORG_BLOCKED` | Organização bloqueada |
+| 404 | `NOT_FOUND` | Recurso não existe ou não é seu |
+| 409 | `CHARGE_NOT_PENDING` | Operação inválida pro status atual da cobrança |
+| 429 | `RATE_LIMITED` | Limite de requisições excedido |
 
 ### Paginação
 
-Endpoints de listagem suportam:
-
-| Parâmetro | Padrão | Descrição |
-|-----------|--------|-----------|
-| `page` | 1 | Página atual |
-| `limit` | 20 | Itens por página (max: 100) |
-
-Resposta inclui `meta`:
+Endpoints de listagem aceitam `?page=1&limit=20` (máx. 100). Resposta inclui `meta`:
 
 ```json
 {
-  "meta": {
-    "total": 150,
-    "page": 1,
-    "limit": 20,
-    "pages": 8
-  }
+  "data": [...],
+  "meta": { "total": 150, "page": 1, "limit": 20, "pages": 8 }
 }
 ```
 
@@ -539,48 +390,30 @@ Resposta inclui `meta`:
 
 ## Rate Limiting
 
+| Endpoint | Limite |
+|---|---|
+| Geral | 100/minuto por API Key |
+| `POST /charges` | 60/minuto |
+| `POST /withdrawals` | 5/hora |
+
 Headers retornados em toda requisição:
 
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 97
-X-RateLimit-Reset: 1705312800
+X-RateLimit-Reset: 1714824000
 ```
-
-Limites específicos por endpoint:
-
-| Endpoint | Limite |
-|----------|--------|
-| `POST /v1/charges` | 60/minuto |
-| `POST /v1/withdrawals` | 5/hora |
-| `POST /v1/auth/login` | 15/15min |
-| `POST /v1/auth/register` | 3/hora |
 
 ---
 
 ## Recursos
 
-| Recurso | Descrição |
-|---------|-----------|
-| **Cobranças Pix** | QR Codes dinâmicos com confirmação instantânea |
-| **Dashboard** | Cobranças, carteira, saques e disputas em tempo real |
-| **Webhooks** | Assinatura HMAC, test delivery, histórico completo |
-| **Multi-tenant** | Múltiplas organizações com roles (Owner, Admin, Finance, Viewer) |
-| **Sandbox** | Ambiente completo para testes |
-| **Liquidação automática** | Settlement configurável (D+0 a D+30) |
-| **Disputas** | Contestação com evidências e resolução admin |
-| **Split de pagamento** | Comissão automática para afiliados |
-| **Depósito via Pix** | QR Code para adicionar saldo à carteira |
-| **Taxa de saque flexível** | Desconto do saque ou do saldo, por merchant |
-| **KYC** | Upload e validação de documentos |
-| **Audit log** | Rastreamento de todas as ações |
-| **Sub-contas** | Hierarquia de merchants com conta pai |
-
----
-
-## Segmentos
-
-PSPs · Fintechs · iGaming · SaaS · Marketplace · Infoprodutos · Serviços Financeiros
+- **Cobranças Pix** — QR Code dinâmico, copia e cola, confirmação instantânea via webhook
+- **Webhooks** — HMAC-SHA256, retries automáticos
+- **Estorno** — total ou parcial via API
+- **Saques** — Pix para qualquer chave, liquidação automática
+- **Disputas** — fluxo de contestação com evidências
+- **Sandbox** — ambiente completo de testes com simulação de pagamento
 
 ---
 
