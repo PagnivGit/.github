@@ -197,6 +197,9 @@ Receba notificações HTTP quando eventos ocorrem.
 | `charge.refunded` | Estornada |
 | `dispute.opened` | Nova disputa |
 | `dispute.resolved` | Disputa resolvida |
+| `withdrawal.completed` | Saque processado pelo provedor |
+| `withdrawal.failed` | Saque falhou no provedor (saldo devolvido) |
+| `withdrawal.rejected` | Saque rejeitado pelo admin (saldo devolvido) |
 
 ### Configurar
 
@@ -316,6 +319,71 @@ Todo evento usa o mesmo envelope (`event`, `data`, `timestamp`). O conteúdo de 
 }
 ```
 
+**`withdrawal.completed`**
+
+```json
+{
+  "event": "withdrawal.completed",
+  "data": {
+    "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    "amount": 50000,
+    "fee": 200,
+    "netAmount": 49800,
+    "pixKey": "12345678900",
+    "pixKeyType": "CPF",
+    "status": "COMPLETED",
+    "provider": "starpago",
+    "providerTxId": "E60746948202605041130ABC123",
+    "createdAt": "2026-05-04T11:30:00Z"
+  },
+  "timestamp": "2026-05-04T11:30:15Z"
+}
+```
+
+**`withdrawal.failed`**
+
+```json
+{
+  "event": "withdrawal.failed",
+  "data": {
+    "id": "f47ac10b-...",
+    "amount": 50000,
+    "fee": 200,
+    "netAmount": 49800,
+    "pixKey": "12345678900",
+    "pixKeyType": "CPF",
+    "status": "FAILED",
+    "provider": "starpago",
+    "providerTxId": null,
+    "createdAt": "2026-05-04T11:30:00Z"
+  },
+  "timestamp": "2026-05-04T11:30:20Z"
+}
+```
+
+**`withdrawal.rejected`**
+
+```json
+{
+  "event": "withdrawal.rejected",
+  "data": {
+    "id": "f47ac10b-...",
+    "amount": 50000,
+    "fee": 200,
+    "netAmount": 49800,
+    "pixKey": "12345678900",
+    "pixKeyType": "CPF",
+    "status": "REJECTED",
+    "provider": null,
+    "providerTxId": null,
+    "createdAt": "2026-05-04T11:30:00Z",
+    "rejectedAt": "2026-05-04T13:00:00Z",
+    "rejectedReason": "Chave Pix divergente do cadastro"
+  },
+  "timestamp": "2026-05-04T13:00:01Z"
+}
+```
+
 ### Verificar assinatura HMAC-SHA256
 
 Use o **rawBody** (string original do request), não `JSON.stringify(req.body)`. Diferença de espaçamento ou ordem de chaves invalida a assinatura.
@@ -341,11 +409,14 @@ app.post('/webhooks/pagniv', (req, res) => {
 
   const payload = JSON.parse(req.body.toString())
   switch (payload.event) {
-    case 'charge.paid':      /* marca pedido como pago */ break
-    case 'charge.refunded':  /* trata estorno */ break
-    case 'charge.expired':   /* libera estoque, etc */ break
-    case 'dispute.opened':   /* avisa time de risco */ break
-    case 'dispute.resolved': /* atualiza status interno */ break
+    case 'charge.paid':           /* marca pedido como pago */ break
+    case 'charge.refunded':       /* trata estorno */ break
+    case 'charge.expired':        /* libera estoque, etc */ break
+    case 'dispute.opened':        /* avisa time de risco */ break
+    case 'dispute.resolved':      /* atualiza status interno */ break
+    case 'withdrawal.completed':  /* baixa o saque internamente */ break
+    case 'withdrawal.failed':     /* notifica que saldo voltou pro merchant */ break
+    case 'withdrawal.rejected':   /* idem, com rejectedReason no payload */ break
   }
 
   res.status(200).send('OK')
