@@ -212,7 +212,11 @@ curl -X POST https://api.pagniv.com/v1/webhook-config \
 
 A resposta inclui um `secret` - guarde para verificar a assinatura.
 
-### Payload recebido
+### Payloads recebidos
+
+Todo evento usa o mesmo envelope (`event`, `data`, `timestamp`). O conteúdo de `data` varia conforme o evento.
+
+**`charge.paid`**
 
 ```json
 {
@@ -222,6 +226,7 @@ A resposta inclui um `secret` - guarde para verificar a assinatura.
     "txid": "pagniv_abc123def456",
     "amount": 15000,
     "netAmount": 14901,
+    "feeAmount": 99,
     "status": "PAID",
     "paidAt": "2026-05-04T11:05:00Z",
     "externalId": "pedido-1234"
@@ -230,12 +235,100 @@ A resposta inclui um `secret` - guarde para verificar a assinatura.
 }
 ```
 
+**`charge.refunded`**
+
+```json
+{
+  "event": "charge.refunded",
+  "data": {
+    "id": "550e8400-...",
+    "txid": "pagniv_abc123def456",
+    "amount": 15000,
+    "netAmount": 14901,
+    "feeAmount": 99,
+    "status": "REFUNDED",
+    "paidAt": "2026-05-04T11:05:00Z",
+    "refundedAt": "2026-05-05T09:32:10Z",
+    "refundedAmount": 14901,
+    "refundReason": "Solicitação do cliente",
+    "externalId": "pedido-1234"
+  },
+  "timestamp": "2026-05-05T09:32:11Z"
+}
+```
+
+**`charge.expired`**
+
+```json
+{
+  "event": "charge.expired",
+  "data": {
+    "id": "550e8400-...",
+    "txid": "pagniv_abc123def456",
+    "amount": 15000,
+    "netAmount": 14901,
+    "feeAmount": 99,
+    "status": "EXPIRED",
+    "paidAt": null,
+    "externalId": "pedido-1234"
+  },
+  "timestamp": "2026-05-04T12:00:01Z"
+}
+```
+
+**`dispute.opened`**
+
+```json
+{
+  "event": "dispute.opened",
+  "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "chargeId": "550e8400-...",
+    "amount": 14901,
+    "reason": "FRAUD",
+    "description": "Não reconheço esta transação",
+    "status": "OPEN",
+    "deadline": "2026-05-11T11:05:00Z",
+    "createdAt": "2026-05-04T14:22:00Z"
+  },
+  "timestamp": "2026-05-04T14:22:01Z"
+}
+```
+
+**`dispute.resolved`**
+
+```json
+{
+  "event": "dispute.resolved",
+  "data": {
+    "id": "7c9e6679-...",
+    "chargeId": "550e8400-...",
+    "amount": 14901,
+    "reason": "FRAUD",
+    "description": "Não reconheço esta transação",
+    "status": "RESOLVED_MERCHANT",
+    "deadline": "2026-05-11T11:05:00Z",
+    "createdAt": "2026-05-04T14:22:00Z",
+    "resolvedAt": "2026-05-07T10:11:00Z",
+    "resolution": "Evidência aceita; merchant venceu."
+  },
+  "timestamp": "2026-05-07T10:11:01Z"
+}
+```
+
 ### Verificar assinatura HMAC-SHA256
+
+Use o **rawBody** (string original do request), não `JSON.stringify(req.body)`. Diferença de espaçamento ou ordem de chaves invalida a assinatura.
 
 ```typescript
 import crypto from 'crypto'
+import express from 'express'
 
-function verifyWebhook(rawBody: string, signature: string, secret: string): boolean {
+const app = express()
+// Captura o body cru pra HMAC
+app.use('/webhooks/pagniv', express.raw({ type: 'application/json' }))
+
+function verifyWebhook(rawBody: Buffer, signature: string, secret: string): boolean {
   const received = signature.replace('sha256=', '')
   const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
   return crypto.timingSafeEqual(Buffer.from(received), Buffer.from(expected))
@@ -243,12 +336,16 @@ function verifyWebhook(rawBody: string, signature: string, secret: string): bool
 
 app.post('/webhooks/pagniv', (req, res) => {
   const signature = req.headers['x-webhook-signature'] as string
-  const isValid = verifyWebhook(JSON.stringify(req.body), signature, process.env.WEBHOOK_SECRET!)
-
+  const isValid = verifyWebhook(req.body, signature, process.env.WEBHOOK_SECRET!)
   if (!isValid) return res.status(401).send('Invalid signature')
 
-  if (req.body.event === 'charge.paid') {
-    // Marca pedido como pago no seu sistema
+  const payload = JSON.parse(req.body.toString())
+  switch (payload.event) {
+    case 'charge.paid':      /* marca pedido como pago */ break
+    case 'charge.refunded':  /* trata estorno */ break
+    case 'charge.expired':   /* libera estoque, etc */ break
+    case 'dispute.opened':   /* avisa time de risco */ break
+    case 'dispute.resolved': /* atualiza status interno */ break
   }
 
   res.status(200).send('OK')
@@ -414,6 +511,18 @@ X-RateLimit-Reset: 1714824000
 - **Saques** - Pix para qualquer chave, liquidação automática
 - **Disputas** - fluxo de contestação com evidências
 - **Sandbox** - ambiente completo de testes com simulação de pagamento
+
+---
+
+## Descadastro de comunicações de marketing
+
+Toda comunicação de marketing enviada pela Pagniv inclui um link de descadastro:
+
+```
+GET /v1/unsubscribe?token=<jwt>
+```
+
+Endpoint público que aceita um token JWT assinado, marca o destinatário (merchant ou lead) como descadastrado e retorna uma página HTML de confirmação. Tokens expiram em 90 dias mas persistem o estado de opt-out indefinidamente. Em compliance com a LGPD, o link sempre será incluído nos emails marketing.
 
 ---
 
