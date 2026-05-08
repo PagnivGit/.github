@@ -562,7 +562,7 @@ Endpoints de listagem aceitam `?page=1&limit=20` (máx. 100). Resposta inclui `m
 |---|---|
 | Geral | 100/minuto por API Key |
 | `POST /charges` | 60/minuto |
-| `POST /withdrawals` | 5/hora |
+| `POST /withdrawals` | 60/minuto por organização |
 
 Headers retornados em toda requisição:
 
@@ -582,18 +582,6 @@ X-RateLimit-Reset: 1714824000
 - **Saques** - Pix para qualquer chave, liquidação automática
 - **Disputas** - fluxo de contestação com evidências
 - **Sandbox** - ambiente completo de testes com simulação de pagamento
-
----
-
-## Descadastro de comunicações de marketing
-
-Toda comunicação de marketing enviada pela Pagniv inclui um link de descadastro:
-
-```
-GET /v1/unsubscribe?token=<jwt>
-```
-
-Endpoint público que aceita um token JWT assinado, marca o destinatário (merchant ou lead) como descadastrado e retorna uma página HTML de confirmação. Tokens expiram em 90 dias mas persistem o estado de opt-out indefinidamente. Em compliance com a LGPD, o link sempre será incluído nos emails marketing.
 
 ---
 
