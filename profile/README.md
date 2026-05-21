@@ -150,15 +150,17 @@ console.log(data.qrCodeBase64)  // Imagem base64
 
 ### Parâmetros
 
+> **Aviso de mudança**: a partir de **20/06/2026**, `externalId`, `payerName` e `payerDocument` viram **obrigatórios** (compliance PLD-FT + idempotência). Até lá, requisições sem eles continuam aceitas mas retornam headers `Deprecation: true`, `Sunset: <data>` e `Warning: 299 ...`. Adapte sua integração.
+
 | Campo | Tipo | Obrigatório | Descrição |
 |---|---|:-:|---|
 | `amount` | `number` | Sim | Valor em centavos (mín: 100) |
+| `externalId` | `string` | Sim (a partir de 20/06/2026) | ID do pedido no seu sistema |
+| `payerName` | `string` | Sim (a partir de 20/06/2026) | Nome do pagador |
+| `payerDocument` | `string` | Sim (a partir de 20/06/2026) | CPF/CNPJ do pagador |
 | `description` | `string` | Não | Descrição |
-| `externalId` | `string` | Não | ID do pedido no seu sistema |
 | `expiresIn` | `number` | Não | Expiração em segundos (padrão: 3600) |
-| `payerName` | `string` | Não | Nome do pagador |
 | `payerEmail` | `string` | Não | Email do pagador |
-| `payerDocument` | `string` | Não | CPF/CNPJ do pagador |
 
 ### Status
 
@@ -497,9 +499,20 @@ curl -X POST https://api.pagniv.com/v1/withdrawals \
 
 ## Disputas
 
+Uma disputa é aberta quando o pagador contesta uma cobrança paga junto ao
+banco (devolução/MED ou chargeback) e o provedor de pagamento reporta a
+contestação. O valor é reservado na carteira e o webhook `dispute.opened` é
+disparado. O merchant contesta enviando comprovações.
+
+Todos os endpoints abaixo aceitam autenticação por **API key** (`X-API-Key`)
+ou JWT do dashboard. Combine com os webhooks `dispute.opened` e
+`dispute.resolved` para automatizar respostas em tempo real (ex: ao receber
+`dispute.opened`, dispare a contestação via API com as evidências).
+
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `GET` | `/v1/disputes` | Listar |
+| `GET` | `/v1/disputes` | Listar (filtro `?status=`) |
+| `GET` | `/v1/disputes/stats` | KPIs (em aberto, valor em risco, vencendo, taxa de ganho) |
 | `GET` | `/v1/disputes/:id` | Detalhar |
 | `POST` | `/v1/disputes/:id/accept` | Aceitar (reembolsa pagador) |
 | `POST` | `/v1/disputes/:id/contest` | Contestar com texto + evidências |
@@ -510,7 +523,7 @@ curl -X POST https://api.pagniv.com/v1/disputes/{id}/contest \
   -H "Content-Type: application/json" \
   -d '{
     "response": "O produto foi entregue conforme combinado.",
-    "evidenceUrls": ["https://exemplo.com/comprovante.pdf"]
+    "evidences": ["https://exemplo.com/comprovante.pdf"]
   }'
 ```
 
